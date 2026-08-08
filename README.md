@@ -1,50 +1,30 @@
 # GhosttyToggle
 
-A ~200-line macOS background agent that binds one global hotkey — **Option+`** — to show, hide, or launch [Ghostty](https://ghostty.org).
+Global **⌥`** to show, hide, or launch [Ghostty](https://ghostty.org). macOS background
+agent, ~200 lines of Swift, no Dock icon, no menu bar item, no permission prompts.
 
-| Ghostty state | Option+` does |
+| Ghostty state | ⌥` does |
 | --- | --- |
 | Not running | Launches it |
 | Running, not frontmost | Activates and focuses it |
 | Running, frontmost | Hides it |
 | Running with zero windows | Activates it **and** opens a new window |
 
-No Dock icon, no menu bar item, no windows, no permission prompts.
-
-## Why not just use Ghostty's own keybind?
-
-`keybind = global:ctrl+backquote=toggle_visibility` gets you rows 2–3, but it cannot
-launch Ghostty when Ghostty isn't running — nothing is there to receive the key.
-That gap is the entire reason this exists.
-
-## No permission prompts
-
-The hotkey is registered with Carbon's **`RegisterEventHotKey`**, which needs no
-Accessibility / Input Monitoring (TCC) grant. That matters practically: an
-`NSEvent.addGlobalMonitorForEvents` or `CGEvent`-tap implementation would prompt on
-first run *and* lose its grant every time the binary is rebuilt or re-signed, since
-TCC keys on the code signature. Don't swap it out.
+Ghostty's own `keybind = global:…=toggle_visibility` covers rows 2–3 only — it cannot
+launch Ghostty when Ghostty isn't running. That gap is why this exists.
 
 ## Build & install
 
 ```sh
-./build.sh              # compile, sign, install to ~/Applications, launch, register login item
-./build.sh --no-install  # build only, leaves build/GhosttyToggle.app
+./build.sh               # compile, sign, install to ~/Applications, launch, register login item
+./build.sh --no-install  # build only
 ```
 
-Requirements: Xcode command line tools (Swift 6.x). No Xcode project, no SwiftPM, no
-third-party dependencies — one `swiftc` invocation per architecture, then `lipo`.
+Needs Xcode command line tools (Swift 6.x); no SwiftPM, no dependencies. Ad-hoc signed,
+so it runs locally but is not distributable. The login item may need approval once under
+**System Settings → General → Login Items & Extensions**.
 
-The app is ad-hoc signed (`codesign -s -`), so it runs locally without a Developer ID
-but is not distributable to other machines.
-
-### Login item
-
-`build.sh` launches the app, which calls `SMAppService.mainApp.register()` — a no-op
-if it is already registered. macOS may show it under **System Settings → General →
-Login Items & Extensions** as needing approval the first time.
-
-## Uninstall
+Uninstall:
 
 ```sh
 ~/Applications/GhosttyToggle.app/Contents/MacOS/GhosttyToggle --unregister
@@ -52,42 +32,7 @@ pkill -x GhosttyToggle
 rm -rf ~/Applications/GhosttyToggle.app
 ```
 
-## Changing the hotkey
-
-Edit `Config` in `Sources/main.swift` and rebuild:
-
-```swift
-static let keyCode: UInt32 = UInt32(kVK_ANSI_Grave)   // the key
-static let modifiers: UInt32 = UInt32(optionKey)       // the modifiers
-```
-
-- **Key codes** are the `kVK_*` constants from `Carbon/HIToolbox/Events.h`
-  (`kVK_ANSI_Grave` = 0x32, `kVK_Space` = 0x31, `kVK_ANSI_T` = 0x11, …). They are
-  physical positions, not characters.
-- **Modifiers** are Carbon masks, OR them together:
-  `controlKey`, `optionKey`, `cmdKey`, `shiftKey`.
-  e.g. Cmd+Option+T → `UInt32(cmdKey | optionKey)` with `kVK_ANSI_T`.
-
-### Why Option+` and not Ctrl+`
-
-Ctrl+` is the conventional quake-terminal binding — Warp's default, Ghostty's own
-documented example, what iTerm2 users carry over — and that popularity is exactly the
-problem. It is also **toggle integrated terminal** in VS Code, Zed and JetBrains IDEs.
-Because `RegisterEventHotKey` grabs the combo system-wide, the editor never sees the
-key at all: binding it here silently breaks the terminal toggle in every editor.
-
-Option+` is unclaimed by macOS and by editors, and keeps the one-modifier muscle
-memory. The one cost: on the US layout ⌥` is the grave-accent dead key (⌥` then `a`
-→ à), which this takes over. If you type accented characters, use `cmdKey | optionKey`
-instead — ⌘⌥` is free everywhere, and VS Code cannot even bind it from its UI.
-
-Combos to avoid: ⌘` (macOS cycle-windows-in-app), ⌘Space (Spotlight), ⌥Space
-(Raycast/Alfred), ⌃Space (input-source switching, IDE completion).
-
-If the app exits immediately with *"could not register Option+`"*, another process
-already owns that combination.
-
-## Other flags
+## Flags
 
 ```
 GhosttyToggle                 run as background agent (default)
@@ -98,44 +43,44 @@ GhosttyToggle --no-login-item run without touching login items
 GhosttyToggle --help
 ```
 
-`GHOSTTY_TOGGLE_BUNDLE_ID` overrides the target app, if you want to point this at a
-different terminal:
+`GHOSTTY_TOGGLE_BUNDLE_ID` points it at another terminal, e.g.
+`GHOSTTY_TOGGLE_BUNDLE_ID=com.github.wez.wezterm`.
 
-```sh
-GHOSTTY_TOGGLE_BUNDLE_ID=com.github.wez.wezterm ~/Applications/GhosttyToggle.app/Contents/MacOS/GhosttyToggle
+Logs: `log stream --predicate 'subsystem == "com.mihasic.ghostty-toggle"' --info`
+
+## Changing the hotkey
+
+Edit `Config` in `Sources/main.swift` and rebuild:
+
+```swift
+static let keyCode: UInt32 = UInt32(kVK_ANSI_Grave)   // kVK_* from Carbon/HIToolbox/Events.h
+static let modifiers: UInt32 = UInt32(optionKey)       // controlKey | optionKey | cmdKey | shiftKey
 ```
 
-## Logs
+Key codes are physical positions, not characters. If the app exits with *"could not
+register"*, another process owns that combination.
 
-```sh
-log stream --predicate 'subsystem == "com.mihasic.ghostty-toggle"' --info
-```
+**Why ⌥` and not ⌃`:** ⌃` is the usual quake-terminal binding, and also toggle-integrated-
+terminal in VS Code, Zed and JetBrains. `RegisterEventHotKey` grabs a combo system-wide, so
+binding it here silently kills it in every editor. Also avoid ⌘` (cycle windows in app),
+⌘Space (Spotlight), ⌥Space (Raycast/Alfred), ⌃Space (input source, IDE completion). ⌥` costs
+only the grave-accent dead key; use `cmdKey | optionKey` if you type accents.
 
-Each hotkey press logs which of the four states it saw and what it did.
+## Design notes
 
-## Notes / known limits
-
-- **Ghostty's quick terminal is a separate window class.** `NSApplication.hide()`
-  does not hide it, so if the quick terminal is the only thing on screen, Option+`
-  will not put it away. Out of scope by design.
-- **Two apps cannot share one combo — and the loser fails silently.** Ghostty's
-  `global:` keybinds use the same `RegisterEventHotKey` mechanism. If Ghostty already
-  binds Option+`, *both* registrations return `noErr`, but only the first registrant
-  ever receives the key: GhosttyToggle looks installed and does nothing. Verified
-  experimentally — with Ghostty holding the key, presses went to Ghostty's quick
-  terminal and GhosttyToggle's handler never ran; on a combo nothing else owned, the
-  same binary toggled correctly on every press.
-
-  So GhosttyToggle owns Option+`, and the quick-terminal binding in
-  `~/Library/Application Support/com.mitchellh.ghostty/config.ghostty` has moved to
-  **Ctrl+Shift+`**. A running Ghostty keeps its old registration until it is
-  restarted; a config reload is not enough to release it.
-- **Window counting is deliberately absent.** Deciding "does Ghostty have any
-  windows?" from `CGWindowListCopyWindowInfo` does not work: `.optionAll` reports
-  retained buffers of already-closed windows, and `.optionOnScreenOnly` omits windows
-  sitting on another Space. Instead a single LaunchServices open covers rows 1, 2 and
-  4 of the table — AppKit itself decides whether a reopen needs a new window, and it
-  is the only thing that actually knows.
+- **`RegisterEventHotKey`, not an event tap.** Needs no Accessibility / Input Monitoring
+  grant. A `CGEvent` tap would prompt on first run and lose the grant on every rebuild,
+  since TCC keys on the code signature. Don't swap it out.
+- **Two apps cannot share one combo, and the loser fails silently.** Both registrations
+  return `noErr`; only the first registrant gets the key. Ghostty's `global:` keybinds use
+  the same mechanism, so its quick terminal must sit on a different combo. A running
+  Ghostty holds its registration until restarted — a config reload does not release it.
+- **Ghostty's quick terminal is a separate window class.** `NSApplication.hide()` does not
+  hide it. Out of scope by design.
+- **No window counting.** `CGWindowListCopyWindowInfo` cannot answer "does Ghostty have
+  windows?" — `.optionAll` reports buffers of closed windows, `.optionOnScreenOnly` omits
+  other Spaces. One LaunchServices open covers rows 1, 2 and 4 instead; AppKit decides
+  whether a reopen needs a new window.
 
 ## License
 
