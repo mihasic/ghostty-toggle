@@ -1,28 +1,37 @@
 #!/bin/bash
 #
-# Builds GhosttyToggle.app and installs it to ~/Applications.
+# Builds GhosttyToggle.app.
 #
-#   ./build.sh            build, sign, install to ~/Applications
-#   ./build.sh --no-install   build only (leaves build/GhosttyToggle.app)
+#   ./build.sh              build, sign, install to ~/Applications, launch
+#   ./build.sh --no-install build only (leaves build/GhosttyToggle.app)
+#   ./build.sh --dmg        build only, then package build/GhosttyToggle-<version>.dmg
 #
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
 APP_NAME="GhosttyToggle"
+BUNDLE_ID="com.mihasic.ghostty-toggle"
 BUILD_DIR="build"
 APP="$BUILD_DIR/$APP_NAME.app"
 INSTALL_DIR="$HOME/Applications"
 DEPLOYMENT_TARGET="13.0"
+VERSION="$(tr -d '[:space:]' < VERSION)"
 
 INSTALL=1
-[[ "${1:-}" == "--no-install" ]] && INSTALL=0
+DMG=0
+case "${1:-}" in
+	--no-install) INSTALL=0 ;;
+	--dmg) INSTALL=0; DMG=1 ;;
+	"") ;;
+	*) echo "unknown option: $1" >&2; exit 2 ;;
+esac
 
 echo "==> Cleaning $BUILD_DIR"
 rm -rf "$BUILD_DIR"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo "==> Compiling (arm64 + x86_64, target macOS $DEPLOYMENT_TARGET)"
+echo "==> Compiling $APP_NAME $VERSION (arm64 + x86_64, target macOS $DEPLOYMENT_TARGET)"
 for arch in arm64 x86_64; do
 	swiftc -O \
 		-target "${arch}-apple-macos${DEPLOYMENT_TARGET}" \
@@ -37,10 +46,28 @@ rm -f "$BUILD_DIR/$APP_NAME.arm64" "$BUILD_DIR/$APP_NAME.x86_64"
 echo "==> Assembling bundle"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+# ./VERSION is the single source of truth; the plist only carries a default.
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
 
 echo "==> Ad-hoc signing"
-codesign --force --sign - --identifier com.mihasic.ghostty-toggle "$APP"
+codesign --force --sign - --identifier "$BUNDLE_ID" "$APP"
 codesign --verify --strict "$APP"
+
+if [[ "$DMG" == "1" ]]; then
+	DMG_PATH="$BUILD_DIR/$APP_NAME-$VERSION.dmg"
+	echo "==> Packaging $DMG_PATH"
+	STAGE="$(mktemp -d)"
+	trap 'rm -rf "$STAGE"' EXIT
+	cp -R "$APP" "$STAGE/$APP_NAME.app"
+	ln -s /Applications "$STAGE/Applications"
+	hdiutil create -quiet -volname "$APP_NAME $VERSION" \
+		-srcfolder "$STAGE" -ov -format UDZO "$DMG_PATH"
+	echo
+	echo "Done: $DMG_PATH"
+	shasum -a 256 "$DMG_PATH"
+	exit 0
+fi
 
 if [[ "$INSTALL" == "1" ]]; then
 	echo "==> Installing to $INSTALL_DIR"
@@ -54,7 +81,7 @@ if [[ "$INSTALL" == "1" ]]; then
 	# instead of pinning this shell's into every terminal. Absolute path: no PATH.
 	env -i /usr/bin/open "$INSTALL_DIR/$APP_NAME.app"
 	echo
-	echo "Done. Ctrl+\` now toggles Ghostty."
+	echo "Done. Option+\` now toggles Ghostty."
 	echo "Registered as a login item (approve in System Settings > General > Login Items if prompted)."
 else
 	echo

@@ -183,6 +183,13 @@ private func unregisterLoginItem() {
 
 let arguments = Set(CommandLine.arguments.dropFirst())
 
+if arguments.contains("--version") {
+    // Set from ./VERSION at build time; only present when run inside the bundle.
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    print("GhosttyToggle \(version ?? "unknown")")
+    exit(0)
+}
+
 if arguments.contains("--unregister") {
     unregisterLoginItem()
     exit(0)
@@ -226,6 +233,7 @@ if arguments.contains("--help") || arguments.contains("-h") {
       --state        print the detected Ghostty state and exit
       --login-status print the login-item registration status
       --unregister   remove from login items
+      --version      print the version
       --help         this message
     """)
     exit(0)

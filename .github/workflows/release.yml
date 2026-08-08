@@ -1,0 +1,81 @@
+name: release
+
+# Tag a release with:  git tag v$(cat VERSION) && git push origin v$(cat VERSION)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "v${version}" ]]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match VERSION (${version})"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build DMG
+        run: ./build.sh --dmg
+
+      - name: Checksum
+        id: checksum
+        run: |
+          dmg="build/GhosttyToggle-${{ steps.version.outputs.version }}.dmg"
+          echo "dmg=${dmg}" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(shasum -a 256 "$dmg" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## Install
+
+          ```sh
+          brew tap mihasic/ghostty-toggle https://github.com/mihasic/ghostty-toggle
+          brew trust mihasic/ghostty-toggle
+          brew install --cask ghostty-toggle
+          ```
+
+          The app is ad-hoc signed, not notarized. The cask clears the download
+          quarantine for you; if you open the DMG by hand, run
+          `xattr -dr com.apple.quarantine /Applications/GhosttyToggle.app` afterwards.
+
+          SHA-256: `${{ steps.checksum.outputs.sha256 }}`
+          EOF
+          gh release create "${GITHUB_REF_NAME}" "${{ steps.checksum.outputs.dmg }}" \
+            --title "GhosttyToggle ${{ steps.version.outputs.version }}" \
+            --notes-file notes.md
+
+      # The cask lives in this repo, so a release has to point it at itself.
+      - name: Update cask
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          sed -i '' \
+            -e 's/^  version ".*"$/  version "${{ steps.version.outputs.version }}"/' \
+            -e 's/^  sha256 .*$/  sha256 "${{ steps.checksum.outputs.sha256 }}"/' \
+            Casks/ghostty-toggle.rb
+          if git diff --quiet Casks/ghostty-toggle.rb; then
+            echo "cask already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Cask: ${{ steps.version.outputs.version }}" Casks/ghostty-toggle.rb
+          git push origin main
