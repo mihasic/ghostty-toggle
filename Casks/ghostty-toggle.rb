@@ -1,7 +1,7 @@
 # Updated automatically by .github/workflows/release.yml on each tagged release.
 cask "ghostty-toggle" do
   version "0.0.1"
-  sha256 :no_check
+  sha256 "dbf4b8668845256a326fb35d0ab9817e92dc7271c78a4b97a7d04dfae8c54caa"
 
   url "https://github.com/mihasic/ghostty-toggle/releases/download/v#{version}/GhosttyToggle-#{version}.dmg",
       verified: "github.com/mihasic/ghostty-toggle/"
