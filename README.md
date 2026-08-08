@@ -131,6 +131,10 @@ log stream --predicate 'subsystem == "com.mihasic.ghostty-toggle"' --info
 Needs the Xcode command line tools (Swift 6.x). ~250 lines of Swift, one `swiftc`
 invocation per architecture — no Xcode project, no SwiftPM, no dependencies.
 
+`build.sh` installs to `~/Applications`, so uninstall the Homebrew copy first
+(`brew uninstall --cask ghostty-toggle`) — two copies fight over the hotkey and the
+loser fails silently.
+
 Releases are cut by tagging: `git tag v$(cat VERSION) && git push origin v$(cat VERSION)`.
 [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the universal
 DMG, publishes it, and updates [`Casks/ghostty-toggle.rb`](Casks/ghostty-toggle.rb).

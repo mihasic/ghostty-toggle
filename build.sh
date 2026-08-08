@@ -70,6 +70,11 @@ if [[ "$DMG" == "1" ]]; then
 fi
 
 if [[ "$INSTALL" == "1" ]]; then
+	if [[ -d "/Applications/$APP_NAME.app" ]]; then
+		echo "!!  /Applications/$APP_NAME.app also exists (Homebrew cask)."
+		echo "!!  Two copies fight over the hotkey and the loser fails silently."
+		echo "!!  Run: brew uninstall --cask ghostty-toggle"
+	fi
 	echo "==> Installing to $INSTALL_DIR"
 	mkdir -p "$INSTALL_DIR"
 	# Stop any running copy so the replaced binary is the one relaunched.
