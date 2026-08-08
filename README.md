@@ -1,8 +1,8 @@
 # GhosttyToggle
 
-A ~200-line macOS background agent that binds one global hotkey — **Ctrl+`** — to show, hide, or launch [Ghostty](https://ghostty.org).
+A ~200-line macOS background agent that binds one global hotkey — **Option+`** — to show, hide, or launch [Ghostty](https://ghostty.org).
 
-| Ghostty state | Ctrl+` does |
+| Ghostty state | Option+` does |
 | --- | --- |
 | Not running | Launches it |
 | Running, not frontmost | Activates and focuses it |
@@ -58,7 +58,7 @@ Edit `Config` in `Sources/main.swift` and rebuild:
 
 ```swift
 static let keyCode: UInt32 = UInt32(kVK_ANSI_Grave)   // the key
-static let modifiers: UInt32 = UInt32(controlKey)      // the modifiers
+static let modifiers: UInt32 = UInt32(optionKey)       // the modifiers
 ```
 
 - **Key codes** are the `kVK_*` constants from `Carbon/HIToolbox/Events.h`
@@ -68,7 +68,23 @@ static let modifiers: UInt32 = UInt32(controlKey)      // the modifiers
   `controlKey`, `optionKey`, `cmdKey`, `shiftKey`.
   e.g. Cmd+Option+T → `UInt32(cmdKey | optionKey)` with `kVK_ANSI_T`.
 
-If the app exits immediately with *"could not register Ctrl+`"*, another process
+### Why Option+` and not Ctrl+`
+
+Ctrl+` is the conventional quake-terminal binding — Warp's default, Ghostty's own
+documented example, what iTerm2 users carry over — and that popularity is exactly the
+problem. It is also **toggle integrated terminal** in VS Code, Zed and JetBrains IDEs.
+Because `RegisterEventHotKey` grabs the combo system-wide, the editor never sees the
+key at all: binding it here silently breaks the terminal toggle in every editor.
+
+Option+` is unclaimed by macOS and by editors, and keeps the one-modifier muscle
+memory. The one cost: on the US layout ⌥` is the grave-accent dead key (⌥` then `a`
+→ à), which this takes over. If you type accented characters, use `cmdKey | optionKey`
+instead — ⌘⌥` is free everywhere, and VS Code cannot even bind it from its UI.
+
+Combos to avoid: ⌘` (macOS cycle-windows-in-app), ⌘Space (Spotlight), ⌥Space
+(Raycast/Alfred), ⌃Space (input-source switching, IDE completion).
+
+If the app exits immediately with *"could not register Option+`"*, another process
 already owns that combination.
 
 ## Other flags
@@ -100,17 +116,17 @@ Each hotkey press logs which of the four states it saw and what it did.
 ## Notes / known limits
 
 - **Ghostty's quick terminal is a separate window class.** `NSApplication.hide()`
-  does not hide it, so if the quick terminal is the only thing on screen, Ctrl+`
+  does not hide it, so if the quick terminal is the only thing on screen, Option+`
   will not put it away. Out of scope by design.
 - **Two apps cannot share one combo — and the loser fails silently.** Ghostty's
   `global:` keybinds use the same `RegisterEventHotKey` mechanism. If Ghostty already
-  binds Ctrl+`, *both* registrations return `noErr`, but only the first registrant
+  binds Option+`, *both* registrations return `noErr`, but only the first registrant
   ever receives the key: GhosttyToggle looks installed and does nothing. Verified
   experimentally — with Ghostty holding the key, presses went to Ghostty's quick
   terminal and GhosttyToggle's handler never ran; on a combo nothing else owned, the
   same binary toggled correctly on every press.
 
-  So GhosttyToggle owns Ctrl+`, and the quick-terminal binding in
+  So GhosttyToggle owns Option+`, and the quick-terminal binding in
   `~/Library/Application Support/com.mitchellh.ghostty/config.ghostty` has moved to
   **Ctrl+Shift+`**. A running Ghostty keeps its old registration until it is
   restarted; a config reload is not enough to release it.

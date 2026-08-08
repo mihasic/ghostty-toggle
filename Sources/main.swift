@@ -1,7 +1,7 @@
 //
 //  GhosttyToggle
 //
-//  A pure-background macOS agent that binds one global hotkey (Ctrl+`) to
+//  A pure-background macOS agent that binds one global hotkey (Option+`) to
 //  show / hide / launch Ghostty.
 //
 //  Carbon's RegisterEventHotKey, not an event tap: it needs no Accessibility grant.
@@ -19,9 +19,9 @@ private enum Config {
     static let targetBundleID =
         ProcessInfo.processInfo.environment["GHOSTTY_TOGGLE_BUNDLE_ID"] ?? "com.mitchellh.ghostty"
 
-    /// Ctrl+` — change these two and rebuild to rebind.
+    /// Option+` — change these two and rebuild to rebind.
     static let keyCode: UInt32 = UInt32(kVK_ANSI_Grave)
-    static let modifiers: UInt32 = UInt32(controlKey)
+    static let modifiers: UInt32 = UInt32(optionKey)
 
     /// Four-char signature + id identifying our hotkey in the Carbon event.
     static let hotKeySignature: OSType = 0x4754_4747  // 'GTGG'
@@ -142,7 +142,7 @@ private func registerHotKey() -> Bool {
     let status = RegisterEventHotKey(
         Config.keyCode, Config.modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
     guard status == noErr else {
-        // -9868 (eventHotKeyExistsErr) means somebody else already owns Ctrl+`.
+        // -9868 (eventHotKeyExistsErr) means somebody else already owns Option+`.
         log.error("RegisterEventHotKey failed: \(status)")
         return false
     }
@@ -219,7 +219,7 @@ if arguments.contains("--toggle") {
 
 if arguments.contains("--help") || arguments.contains("-h") {
     print("""
-    GhosttyToggle — global Ctrl+` to show/hide/launch Ghostty.
+    GhosttyToggle — global Option+` to show/hide/launch Ghostty.
 
       (no flags)     run as a background agent and register the hotkey
       --toggle       perform one toggle and exit
@@ -236,7 +236,7 @@ let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
 guard registerHotKey() else {
-    fputs("GhosttyToggle: could not register Ctrl+` — is another app using it?\n", stderr)
+    fputs("GhosttyToggle: could not register Option+` — is another app using it?\n", stderr)
     exit(1)
 }
 
@@ -244,5 +244,5 @@ if !arguments.contains("--no-login-item") {
     registerLoginItem()
 }
 
-log.notice("GhosttyToggle running; Ctrl+` registered")
+log.notice("GhosttyToggle running; Option+` registered")
 app.run()
