@@ -31,7 +31,7 @@ jobs:
       - name: Checksum
         id: checksum
         run: |
-          dmg="build/GhosttyToggle-${{ steps.version.outputs.version }}.dmg"
+          dmg="build/TermToggle-${{ steps.version.outputs.version }}.dmg"
           echo "dmg=${dmg}" >> "$GITHUB_OUTPUT"
           echo "sha256=$(shasum -a 256 "$dmg" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
@@ -44,19 +44,19 @@ jobs:
           ## Install
 
           ```sh
-          brew tap mihasic/ghostty-toggle https://github.com/mihasic/ghostty-toggle
-          brew trust mihasic/ghostty-toggle
-          brew install --cask ghostty-toggle
+          brew tap mihasic/term-toggle https://github.com/mihasic/term-toggle
+          brew trust mihasic/term-toggle
+          brew install --cask term-toggle
           ```
 
           The app is ad-hoc signed, not notarized. The cask clears the download
           quarantine for you; if you open the DMG by hand, run
-          `xattr -dr com.apple.quarantine /Applications/GhosttyToggle.app` afterwards.
+          `xattr -dr com.apple.quarantine /Applications/TermToggle.app` afterwards.
 
           SHA-256: `${{ steps.checksum.outputs.sha256 }}`
           EOF
           gh release create "${GITHUB_REF_NAME}" "${{ steps.checksum.outputs.dmg }}" \
-            --title "GhosttyToggle ${{ steps.version.outputs.version }}" \
+            --title "TermToggle ${{ steps.version.outputs.version }}" \
             --notes-file notes.md
 
       # The cask lives in this repo, so a release has to point it at itself.
@@ -70,12 +70,12 @@ jobs:
           sed -i '' \
             -e 's/^  version ".*"$/  version "${{ steps.version.outputs.version }}"/' \
             -e 's/^  sha256 .*$/  sha256 "${{ steps.checksum.outputs.sha256 }}"/' \
-            Casks/ghostty-toggle.rb
-          if git diff --quiet Casks/ghostty-toggle.rb; then
+            Casks/term-toggle.rb
+          if git diff --quiet Casks/term-toggle.rb; then
             echo "cask already current"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Cask: ${{ steps.version.outputs.version }}" Casks/ghostty-toggle.rb
+          git commit -m "Cask: ${{ steps.version.outputs.version }}" Casks/term-toggle.rb
           git push origin main

@@ -1,17 +1,17 @@
 #!/bin/bash
 #
-# Builds GhosttyToggle.app.
+# Builds TermToggle.app.
 #
 #   ./build.sh              build, sign, install to ~/Applications, launch
-#   ./build.sh --no-install build only (leaves build/GhosttyToggle.app)
-#   ./build.sh --dmg        build only, then package build/GhosttyToggle-<version>.dmg
+#   ./build.sh --no-install build only (leaves build/TermToggle.app)
+#   ./build.sh --dmg        build only, then package build/TermToggle-<version>.dmg
 #
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP_NAME="GhosttyToggle"
-BUNDLE_ID="com.mihasic.ghostty-toggle"
+APP_NAME="TermToggle"
+BUNDLE_ID="com.mihasic.term-toggle"
 BUILD_DIR="build"
 APP="$BUILD_DIR/$APP_NAME.app"
 INSTALL_DIR="$HOME/Applications"
@@ -73,7 +73,7 @@ if [[ "$INSTALL" == "1" ]]; then
 	if [[ -d "/Applications/$APP_NAME.app" ]]; then
 		echo "!!  /Applications/$APP_NAME.app also exists (Homebrew cask)."
 		echo "!!  Two copies fight over the hotkey and the loser fails silently."
-		echo "!!  Run: brew uninstall --cask ghostty-toggle"
+		echo "!!  Run: brew uninstall --cask term-toggle"
 	fi
 	echo "==> Installing to $INSTALL_DIR"
 	mkdir -p "$INSTALL_DIR"
@@ -86,7 +86,8 @@ if [[ "$INSTALL" == "1" ]]; then
 	# instead of pinning this shell's into every terminal. Absolute path: no PATH.
 	env -i /usr/bin/open "$INSTALL_DIR/$APP_NAME.app"
 	echo
-	echo "Done. Option+\` now toggles Ghostty."
+	# Prints the resolved target app and chord, so a stale preference is visible.
+	"$INSTALL_DIR/$APP_NAME.app/Contents/MacOS/$APP_NAME" --config
 	echo "Registered as a login item (approve in System Settings > General > Login Items if prompted)."
 else
 	echo

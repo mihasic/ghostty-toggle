@@ -1,33 +1,38 @@
-# GhosttyToggle
+# TermToggle
 
-One global hotkey — **⌥`** (Option + backtick) — to show, hide, or launch
-[Ghostty](https://ghostty.org), from anywhere in macOS.
+One global hotkey — **⌥`** (Option + backtick) by default — to show, hide, or
+launch your terminal, from anywhere in macOS.
 
-| Ghostty is… | ⌥` does |
+| The app is… | ⌥` does |
 | --- | --- |
 | Not running | Launches it |
 | Behind another app | Brings it to the front |
 | In front of you | Hides it |
 | Running with no windows | Brings it up **and** opens a new window |
 
+Any app works; the built-in target is [Ghostty](https://ghostty.org). Point it at
+iTerm2, kitty, or anything else with one `defaults write` — see
+[Configuration](#configuration).
+
 It runs in the background: no Dock icon, no menu bar item, no windows, and no
 permission prompts. Starts automatically at login.
 
-**Why not Ghostty's own `global:` keybind?** It handles rows 2 and 3, but it cannot
-launch Ghostty when Ghostty isn't running — there's no app there to receive the key.
-This fills that gap.
+**Why not the terminal's own global keybind?** Ghostty's `global:` prefix and kitty's
+quick-access window handle rows 2 and 3, but neither can launch the app when it isn't
+running — there's no process there to receive the key. And both summon a quake-style
+panel rather than your real windows. This fills that gap.
 
 ## Install
 
 ```sh
-brew tap mihasic/ghostty-toggle https://github.com/mihasic/ghostty-toggle
-brew trust mihasic/ghostty-toggle
-brew install --cask ghostty-toggle
+brew tap mihasic/term-toggle https://github.com/mihasic/term-toggle
+brew trust mihasic/term-toggle
+brew install --cask term-toggle
 ```
 
 Homebrew 6 requires the explicit `brew trust` for any tap outside the official ones.
 
-That's it — ⌥` works immediately, and GhosttyToggle starts at login from then on.
+That's it — ⌥` works immediately, and TermToggle starts at login from then on.
 macOS may ask you to approve it once under **System Settings → General → Login
 Items & Extensions**.
 
@@ -36,37 +41,80 @@ Requires macOS 13 (Ventura) or later. Apple Silicon and Intel.
 ### Upgrade
 
 ```sh
-brew upgrade --cask ghostty-toggle
+brew upgrade --cask term-toggle
 ```
 
 ### Uninstall
 
 ```sh
-brew uninstall --cask ghostty-toggle
+brew uninstall --cask term-toggle
 ```
 
 This also removes it from your login items.
 
 ### Without Homebrew
 
-Download the DMG from [Releases](https://github.com/mihasic/ghostty-toggle/releases),
-drag **GhosttyToggle** to Applications, then clear the download quarantine and launch
-it:
+Download the DMG from [Releases](https://github.com/mihasic/term-toggle/releases),
+drag **TermToggle** to Applications, then clear the download quarantine and launch it:
 
 ```sh
-xattr -dr com.apple.quarantine /Applications/GhosttyToggle.app
-open /Applications/GhosttyToggle.app
+xattr -dr com.apple.quarantine /Applications/TermToggle.app
+open /Applications/TermToggle.app
 ```
 
 The app is ad-hoc signed rather than notarized (no paid Apple Developer account), so
 without that `xattr` step Gatekeeper refuses to open it. The Homebrew cask does it for
 you.
 
-## Ghostty's quick terminal
+## Configuration
 
-If you also use Ghostty's built-in quick terminal, give it a **different** combo —
-two apps cannot share one hotkey, and the loser fails silently rather than warning you.
-In `~/Library/Application Support/com.mitchellh.ghostty/config.ghostty`:
+Two settings — the target app and the chord — each resolved
+**flag → environment → preferences → built-in**:
+
+```sh
+defaults write com.mihasic.term-toggle app com.googlecode.iterm2
+defaults write com.mihasic.term-toggle hotkey "ctrl+shift+grave"
+```
+
+Then restart the agent so it picks them up and re-registers the chord:
+
+```sh
+pkill -x TermToggle; open -a TermToggle
+TermToggle --config          # what it actually resolved, and from where
+```
+
+`app` takes a bundle id (`net.kovidgoyal.kitty`), a bare app name (`kitty`), or a path
+to a bundle (`~/Applications/kitty.app`). Common ids:
+
+| Terminal | Bundle id |
+| --- | --- |
+| Ghostty (built-in default) | `com.mitchellh.ghostty` |
+| iTerm2 | `com.googlecode.iterm2` |
+| kitty | `net.kovidgoyal.kitty` |
+| Apple Terminal | `com.apple.Terminal` |
+
+`hotkey` is modifier words joined by `+`, then a base key: `ctrl`, `opt` (`alt`),
+`shift`, `cmd`, and a key name — `a`–`z`, `0`–`9`, `grave`, `space`, `tab`, `return`,
+`escape`, `delete`, an arrow, `f1`–`f12`, or a punctuation name (`minus`, `slash`, …).
+A modifier is required, and keys are physical positions, so a chord survives a
+keyboard-layout switch.
+
+The environment variables `TERM_TOGGLE_APP` and `TERM_TOGGLE_HOTKEY` override the
+preferences, but only for a run started from a shell — a login-item launch gets no
+shell environment, which is what `defaults write` is for.
+
+### Combos worth avoiding
+
+⌃` is the usual quake-terminal binding, and also **toggle integrated terminal** in
+VS Code, Zed and JetBrains IDEs. A global hotkey is grabbed system-wide, so binding ⌃`
+here would silently kill the terminal toggle in every editor. ⌥` is unclaimed and keeps
+the one-modifier muscle memory; its only cost is the grave-accent dead key (⌥` then `a`
+→ à). Also taken: ⌘` (cycle windows in an app), ⌘Space (Spotlight), ⌥Space
+(Raycast/Alfred), ⌃Space (input source, IDE completion).
+
+If it exits with *"could not register"*, something else already owns that combination.
+Two apps cannot share one hotkey, and the loser fails silently — so give your
+terminal's own quick-terminal binding a **different** chord. In Ghostty's config:
 
 ```
 keybind = global:ctrl+shift+grave_accent=toggle_quick_terminal
@@ -75,49 +123,28 @@ keybind = global:ctrl+shift+grave_accent=toggle_quick_terminal
 A running Ghostty holds its old binding until you restart it; reloading the config is
 not enough.
 
-## Why ⌥` and not ⌃`
-
-⌃` is the usual quake-terminal binding, and also **toggle integrated terminal** in
-VS Code, Zed and JetBrains IDEs. A global hotkey is grabbed system-wide, so binding
-⌃` here would silently kill the terminal toggle in every editor. ⌥` is unclaimed and
-keeps the one-modifier muscle memory; its only cost is the grave-accent dead key
-(⌥` then `a` → à).
-
-## Changing the hotkey
-
-Edit `Config` in `Sources/main.swift`, then run `./build.sh`:
-
-```swift
-static let keyCode: UInt32 = UInt32(kVK_ANSI_Grave)   // kVK_* from Carbon/HIToolbox/Events.h
-static let modifiers: UInt32 = UInt32(optionKey)       // controlKey | optionKey | cmdKey | shiftKey
-```
-
-Key codes are physical key positions, not characters. Combos worth avoiding: ⌘`
-(cycle windows in an app), ⌘Space (Spotlight), ⌥Space (Raycast/Alfred), ⌃Space (input
-source, IDE completion). If the app exits with *"could not register"*, something else
-already owns that combination.
-
 ## Command line
 
 ```
-GhosttyToggle                 run as background agent (default)
-GhosttyToggle --toggle        perform one toggle and exit — scriptable, no hotkey
-GhosttyToggle --state         print the detected Ghostty state
-GhosttyToggle --login-status  print the login-item registration status
-GhosttyToggle --unregister    remove from login items
-GhosttyToggle --version
-GhosttyToggle --help
+TermToggle                    run as background agent (default)
+TermToggle --toggle           perform one toggle and exit — scriptable, no hotkey
+TermToggle --state            print the detected state of the target app
+TermToggle --config           print the resolved settings and where they came from
+TermToggle --login-status     print the login-item registration status
+TermToggle --unregister       remove from login items
+TermToggle --version
+TermToggle --help
+
+  -a, --app <spec>            override the target for this run
+  -k, --hotkey <chord>        override the chord for this run
 ```
 
-The binary lives at `/Applications/GhosttyToggle.app/Contents/MacOS/GhosttyToggle`.
-
-Point it at a different terminal with `GHOSTTY_TOGGLE_BUNDLE_ID`, e.g.
-`GHOSTTY_TOGGLE_BUNDLE_ID=com.github.wez.wezterm`.
+The binary lives at `/Applications/TermToggle.app/Contents/MacOS/TermToggle`.
 
 Watch what it's doing:
 
 ```sh
-log stream --predicate 'subsystem == "com.mihasic.ghostty-toggle"' --info
+log stream --predicate 'subsystem == "com.mihasic.term-toggle"' --info
 ```
 
 ## Build from source
@@ -125,19 +152,19 @@ log stream --predicate 'subsystem == "com.mihasic.ghostty-toggle"' --info
 ```sh
 ./build.sh               # build, sign, install to ~/Applications, launch
 ./build.sh --no-install  # build only
-./build.sh --dmg         # build and package build/GhosttyToggle-<version>.dmg
+./build.sh --dmg         # build and package build/TermToggle-<version>.dmg
 ```
 
-Needs the Xcode command line tools (Swift 6.x). ~250 lines of Swift, one `swiftc`
+Needs the Xcode command line tools (Swift 6.x). ~450 lines of Swift, one `swiftc`
 invocation per architecture — no Xcode project, no SwiftPM, no dependencies.
 
 `build.sh` installs to `~/Applications`, so uninstall the Homebrew copy first
-(`brew uninstall --cask ghostty-toggle`) — two copies fight over the hotkey and the
-loser fails silently.
+(`brew uninstall --cask term-toggle`) — two copies fight over the hotkey and the loser
+fails silently.
 
 Releases are cut by tagging: `git tag v$(cat VERSION) && git push origin v$(cat VERSION)`.
 [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the universal
-DMG, publishes it, and updates [`Casks/ghostty-toggle.rb`](Casks/ghostty-toggle.rb).
+DMG, publishes it, and updates [`Casks/term-toggle.rb`](Casks/term-toggle.rb).
 
 ## Design notes
 
@@ -146,12 +173,16 @@ DMG, publishes it, and updates [`Casks/ghostty-toggle.rb`](Casks/ghostty-toggle.
   every rebuild, since TCC keys on the code signature.
 - **Two apps cannot share a combo, and the loser fails silently.** Both registrations
   return `noErr`; only the first one to register receives the key.
-- **Ghostty's quick terminal is a separate window class.** `NSApplication.hide()` does
-  not hide it, so ⌥` will not put away a lone quick terminal. Out of scope by design.
-- **No window counting.** `CGWindowListCopyWindowInfo` cannot answer "does Ghostty
+- **A quick-terminal panel is a separate window class.** `NSApplication.hide()` does
+  not hide it, so ⌥` will not put away a lone Ghostty quick terminal or kitty
+  quick-access window. Out of scope by design.
+- **No window counting.** `CGWindowListCopyWindowInfo` cannot answer "does this app
   have windows?" — `.optionAll` reports buffers of closed windows, `.optionOnScreenOnly`
   omits other Spaces. A single LaunchServices open covers rows 1, 2 and 4 instead;
   AppKit itself decides whether a reopen needs a new window.
+- **The target is resolved on every press.** The app can be installed, moved or
+  replaced while the agent runs, and a bundle id that is not installed yet still
+  reports a sane state instead of failing to start.
 
 ## License
 

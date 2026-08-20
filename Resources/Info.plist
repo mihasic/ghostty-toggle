@@ -5,13 +5,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>GhosttyToggle</string>
+	<string>TermToggle</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.mihasic.ghostty-toggle</string>
+	<string>com.mihasic.term-toggle</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>GhosttyToggle</string>
+	<string>TermToggle</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<!-- Both version keys are overwritten from ./VERSION at build time. -->
